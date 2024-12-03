@@ -1,5 +1,5 @@
 ﻿#pragma once
-
+//Global EnhanceMent
 namespace histogramEqualization {
 
 	using namespace System;
@@ -83,7 +83,7 @@ namespace histogramEqualization {
 			   this->pictureBox1->Location = System::Drawing::Point(2, 79);
 			   this->pictureBox1->Name = L"pictureBox1";
 			   this->pictureBox1->Size = System::Drawing::Size(640, 480);
-			   this->pictureBox1->SizeMode = System::Windows::Forms::PictureBoxSizeMode::Zoom;
+			   this->pictureBox1->SizeMode = System::Windows::Forms::PictureBoxSizeMode::AutoSize;
 			   this->pictureBox1->TabIndex = 1;
 			   this->pictureBox1->TabStop = false;
 			   // 
@@ -92,7 +92,7 @@ namespace histogramEqualization {
 			   this->pictureBox2->Location = System::Drawing::Point(648, 79);
 			   this->pictureBox2->Name = L"pictureBox2";
 			   this->pictureBox2->Size = System::Drawing::Size(640, 480);
-			   this->pictureBox2->SizeMode = System::Windows::Forms::PictureBoxSizeMode::Zoom;
+			   this->pictureBox2->SizeMode = System::Windows::Forms::PictureBoxSizeMode::AutoSize;
 			   this->pictureBox2->TabIndex = 2;
 			   this->pictureBox2->TabStop = false;
 			   // 
@@ -121,6 +121,7 @@ namespace histogramEqualization {
 			   (cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->pictureBox1))->EndInit();
 			   (cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->pictureBox2))->EndInit();
 			   this->ResumeLayout(false);
+			   this->PerformLayout();
 
 		   }
 #pragma endregion
@@ -166,117 +167,73 @@ namespace histogramEqualization {
 		Byte* output_ptr = (Byte*)((void*)bd_output->Scan0);
 		int grayLeval = 256;
 		int grayForm[256] = {};
+		int grayFormN[256] = {};
 		int s[256] = {};
-		int subCircle = 7;//局部影像大小
-		int totalPixel = (subCircle * subCircle);
+		int totalPixel = (bd_ori->Height * bd_ori->Width);
 		int ni = 0;
-		int xOffset = 0;
-		int yOffset = 0;
+		int sMin = 0;
+		int sMax = 255;
+		int rMin = 0;
+		int rMax = 0;
+		int counterMax = 0;
+
+		//灰階演算法  
 		for (int y = 0; y < bd_ori->Height; y++) {
-			for (int x = 0; x < bd_output->Width; x++) {
+			for (int x = 0; x < bd_ori->Width; x++) {
 				//像素值填入
 				int B = (int)ori_ptr[0];
 				int G = (int)ori_ptr[1];
 				int R = (int)ori_ptr[2];
 				int gray = (R + G + B) / 3;
-				output_ptr[0] = gray;
-				output_ptr[1] = gray;
-				output_ptr[2] = gray;
+				grayForm[gray]++;
+
 				// 跳到下個像素
 				ori_ptr += 3;
-				output_ptr += 3;
 			}
+			ori_ptr += ori_byteskip;
+		}
+
+		for (int i = 0; i < 256; i++) {
+			ni += grayForm[i];
+			s[i] = ((float)(ni * (grayLeval - 1) / totalPixel));
+		}
+		ori_ptr = (Byte*)((void*)bd_ori->Scan0);
+		output_ptr = (Byte*)((void*)bd_output->Scan0);
+		int newGray = 0;
+		for (int y = 0; y < bd_ori->Height; y++) {
+			for (int x = 0; x < bd_ori->Width; x++) {
+				//像素值填入
+				int B = (int)ori_ptr[0];
+				int G = (int)ori_ptr[1];
+				int R = (int)ori_ptr[2];
+				int gray = (R + G + B) / 3;
+
+				newGray = s[gray];
+
+				//newGray = gray;
+				if (newGray > 255) {
+					newGray = 255;
+				}
+				else if (newGray < 0) {
+					newGray = 0;
+				}
+				grayFormN[newGray]++;
+				output_ptr[0] = newGray;
+				output_ptr[1] = newGray;
+				output_ptr[2] = newGray;
+
+				// 跳到下個像素
+
+				ori_ptr += 3;
+				output_ptr += 3;
+
+			}
+			//throw garbage
 			ori_ptr += ori_byteskip;
 			output_ptr += output_byteskip;
 		}
-		while (true) {
-			ori_ptr = (Byte*)((void*)bd_ori->Scan0);
-			output_ptr = (Byte*)((void*)bd_output->Scan0);
-			ori_ptr += (yOffset * bd_ori->Stride) + (xOffset * 3);
-			output_ptr += (yOffset * bd_ori->Stride) + (xOffset * 3);
-			for (int i = 0; i < 256; i++) {
-				s[i] = 0;
-				grayForm[i] = 0;
-			}
-			ni = 0;
-			//灰階演算法  
-			for (int y = 0; y < subCircle; y++) {
-				for (int x = 0; x < subCircle; x++) {
-					//像素值填入
-					int B = (int)ori_ptr[0];
-					int G = (int)ori_ptr[1];
-					int R = (int)ori_ptr[2];
-					int gray = (R + G + B) / 3;
-					grayForm[gray]++;
-
-					// 跳到下個像素
-					ori_ptr += 3;
-				}
-				ori_ptr += bd_ori->Stride - subCircle * 3;
-			}
-
-			for (int i = 0; i < 256; i++) {
-				ni += grayForm[i];
-				s[i] = ((float)(ni * (grayLeval - 1) / totalPixel));
-			}
-			ori_ptr = (Byte*)((void*)bd_ori->Scan0);
-			output_ptr = (Byte*)((void*)bd_output->Scan0);
-			ori_ptr += (((subCircle - 1) / 2) + yOffset) * bd_ori->Stride + (((subCircle - 1) / 2) + xOffset) * 3;
-			output_ptr += (((subCircle - 1) / 2) + yOffset) * bd_ori->Stride + (((subCircle - 1) / 2) + xOffset) * 3;
-			int newGray = 0;
-			int B = (int)ori_ptr[0];
-			int G = (int)ori_ptr[1];
-			int R = (int)ori_ptr[2];
-			int gray = (R + G + B) / 3;
-			newGray = s[gray];
-			output_ptr[0] = newGray;
-			output_ptr[1] = newGray;
-			output_ptr[2] = newGray;
-
-			/*for (int y = 0; y < subCircle; y++) {
-				for (int x = 0; x < subCircle; x++) {
-					//像素值填入
-					int B = (int)ori_ptr[0];
-					int G = (int)ori_ptr[1];
-					int R = (int)ori_ptr[2];
-					int gray = (R + G + B) / 3;
-
-					newGray = s[gray];
-
-					//newGray = gray;
-					if (newGray > 255) {
-						newGray = 255;
-					}
-					else if (newGray < 0) {
-						newGray = 0;
-					}
-					output_ptr[0] = newGray;
-					output_ptr[1] = newGray;
-					output_ptr[2] = newGray;
-
-					// 跳到下個像素
-
-					ori_ptr += 3;
-					output_ptr += 3;
-
-				}
-				//throw garbage
-				ori_ptr += bd_ori->Stride - subCircle * 3;
-				output_ptr += bd_output->Stride - subCircle * 3;
-			}*/
-			if ((xOffset + subCircle +1) < bd_ori->Width) {
-				xOffset++;
-			}
-			else {
-				xOffset = 0;
-				if ((yOffset + subCircle + 1) < bd_ori->Height) {
-					yOffset++;
-				}
-				else {
-					break;
-				}
-			}
-		}
+		grayForm[0]++;
+		grayFormN[0]++;
 		//Unlock處理完畢的像素範圍
 		ori_image->UnlockBits(bd_ori);
 		output->UnlockBits(bd_output);
