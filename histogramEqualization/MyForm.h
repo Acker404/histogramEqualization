@@ -1,5 +1,5 @@
 ﻿#pragma once
-
+//Local EnhanceMent
 namespace histogramEqualization {
 
 	using namespace System;
